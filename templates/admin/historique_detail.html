@@ -1,1 +1,142 @@
 
+{% extends "base.html" %}
+
+{% block title %}Détail historique - {{ mois_nom }} {{ annee }}{% endblock %}
+
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px;margin-bottom:24px;">
+    <div>
+        <h1 style="font-size:1.8rem;">📊 Détail du mois</h1>
+        <p style="color:var(--ink-soft);">{{ mois_nom }} {{ annee }}</p>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <a href="{{ url_for('admin.historique') }}" class="btn btn-outline">← Retour</a>
+    </div>
+</div>
+
+<!-- Statistiques du mois -->
+<div class="stats-grid">
+    <div class="stat-card" style="border-top-color:#27ae60;">
+        <div class="number">{{ total_presents }}</div>
+        <div class="label">✅ Présences</div>
+    </div>
+    <div class="stat-card" style="border-top-color:#ff9800;">
+        <div class="number">{{ total_retards }}</div>
+        <div class="label">⏰ Retards</div>
+    </div>
+    <div class="stat-card" style="border-top-color:#e74c3c;">
+        <div class="number">{{ total_absents }}</div>
+        <div class="label">❌ Absents</div>
+    </div>
+</div>
+
+<!-- Détails par jour -->
+<div class="card">
+    <div class="card-header">
+        <h2>📋 Détails par jour</h2>
+        <span style="color:var(--ink-soft);font-size:0.9rem;">{{ details|length }} jours ouvrés</span>
+    </div>
+    <div class="card-body">
+        {% if details %}
+        <div class="table-responsive">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>✅ Présents</th>
+                        <th>⏰ Retards</th>
+                        <th>❌ Absents</th>
+                        <th>Détails</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for d in details %}
+                    <tr>
+                        <td><strong>{{ d.date_fr }}</strong></td>
+                        <td>{{ d.total_presents }}</td>
+                        <td>
+                            {% if d.total_retards > 0 %}
+                            <span style="color:#ff9800;">{{ d.total_retards }}</span>
+                            {% else %}
+                            0
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if d.total_absents > 0 %}
+                            <span style="color:#e74c3c;">{{ d.total_absents }}</span>
+                            {% else %}
+                            0
+                            {% endif %}
+                        </td>
+                        <td>
+                            <button class="btn btn-sm btn-info" onclick="toggleDetails({{ loop.index0 }})">👁️ Voir</button>
+                        </td>
+                    </tr>
+                    <tr id="detail-{{ loop.index0 }}" style="display:none;background:#f8faf8;">
+                        <td colspan="5" style="padding:12px;">
+                            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">
+                                <div>
+                                    <strong style="color:#27ae60;">✅ Présents ({{ d.total_presents }})</strong>
+                                    <ul style="margin-top:4px;list-style:none;padding:0;">
+                                        {% for p in d.presents %}
+                                        <li style="font-size:0.85rem;padding:2px 0;">
+                                            {{ p.stagiaire.prenom }} {{ p.stagiaire.nom }}
+                                            ({{ p.heure_arrivee.strftime('%H:%M') if p.heure_arrivee else '-' }})
+                                            {% if p.est_retard %}
+                                            <span class="badge badge-warning" style="font-size:0.6rem;">Retard</span>
+                                            {% endif %}
+                                        </li>
+                                        {% else %}
+                                        <li style="color:var(--ink-soft);">Aucun</li>
+                                        {% endfor %}
+                                    </ul>
+                                </div>
+                                <div>
+                                    <strong style="color:#ff9800;">⏰ Retards ({{ d.total_retards }})</strong>
+                                    <ul style="margin-top:4px;list-style:none;padding:0;">
+                                        {% for r in d.retards %}
+                                        <li style="font-size:0.85rem;padding:2px 0;">
+                                            {{ r.prenom }} {{ r.nom }}
+                                        </li>
+                                        {% else %}
+                                        <li style="color:var(--ink-soft);">Aucun</li>
+                                        {% endfor %}
+                                    </ul>
+                                </div>
+                                <div>
+                                    <strong style="color:#e74c3c;">❌ Absents ({{ d.total_absents }})</strong>
+                                    <ul style="margin-top:4px;list-style:none;padding:0;">
+                                        {% for a in d.absents %}
+                                        <li style="font-size:0.85rem;padding:2px 0;">
+                                            {{ a.prenom }} {{ a.nom }}
+                                            <span style="color:var(--ink-soft);font-size:0.75rem;">({{ a.matricule or 'sans matricule' }})</span>
+                                        </li>
+                                        {% else %}
+                                        <li style="color:var(--ink-soft);">Aucun</li>
+                                        {% endfor %}
+                                    </ul>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="empty">Aucune donnée pour ce mois.</p>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+function toggleDetails(index) {
+    const row = document.getElementById('detail-' + index);
+    if (row.style.display === 'none') {
+        row.style.display = 'table-row';
+    } else {
+        row.style.display = 'none';
+    }
+}
+</script>
+{% endblock %}

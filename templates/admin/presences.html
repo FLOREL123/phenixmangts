@@ -1,1 +1,286 @@
 
+{% extends "base.html" %}
+
+{% block title %}Présences - Administration{% endblock %}
+
+{% block extra_css %}
+<style>
+    .btn-group-vertical {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        min-width: 180px;
+    }
+    .btn-group-vertical .btn {
+        justify-content: center;
+        width: 100%;
+        text-align: center;
+    }
+    .content-vertical {
+        display: flex;
+        gap: 24px;
+        align-items: flex-start;
+    }
+    .content-vertical .main-content {
+        flex: 1;
+        min-width: 0;
+    }
+    .badge-retard {
+        background: #ff9800;
+        color: white;
+        padding: 2px 10px;
+        border-radius: 999px;
+        font-size: 0.7rem;
+        font-weight: 600;
+    }
+    .stat-box {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 12px 16px;
+        text-align: center;
+        margin-bottom: 8px;
+    }
+    .stat-box .number {
+        font-size: 1.5rem;
+        font-weight: 700;
+    }
+    .stat-box .label {
+        font-size: 0.75rem;
+        color: var(--ink-soft);
+    }
+    @media (max-width: 768px) {
+        .content-vertical {
+            flex-direction: column;
+        }
+        .btn-group-vertical {
+            flex-direction: row;
+            flex-wrap: wrap;
+            min-width: unset;
+        }
+        .btn-group-vertical .btn {
+            flex: 1;
+            min-width: 100px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px;margin-bottom:24px;">
+    <div>
+        <h1 style="font-size:1.8rem;">📍 Présences du jour</h1>
+        <p style="color:var(--ink-soft);">{{ today.strftime('%d/%m/%Y') }}</p>
+    </div>
+    <div>
+        <a href="{{ url_for('admin.dashboard') }}" class="btn btn-outline">← Retour</a>
+    </div>
+</div>
+
+<!-- Statistiques rapides -->
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px;">
+    <div class="stat-box" style="border-left:4px solid #27ae60;">
+        <div class="number" style="color:#27ae60;">{{ presences|length }}</div>
+        <div class="label">✅ Présents</div>
+    </div>
+    <div class="stat-box" style="border-left:4px solid #ff9800;">
+        <div class="number" style="color:#ff9800;">{{ retards|length }}</div>
+        <div class="label">⏰ Retards</div>
+    </div>
+    <div class="stat-box" style="border-left:4px solid #e74c3c;">
+        <div class="number" style="color:#e74c3c;">{{ stagiaires_absents|length }}</div>
+        <div class="label">❌ Absents</div>
+    </div>
+</div>
+
+<div class="content-vertical">
+    <!-- Barre latérale verticale -->
+    <div class="btn-group-vertical">
+        <button class="btn btn-primary" onclick="afficherSection('tous')">👥 Tous</button>
+        <button class="btn btn-warning" onclick="afficherSection('retards')">⏰ Retardataires</button>
+        <button class="btn btn-danger" onclick="afficherSection('absents')">❌ Absents</button>
+        <a href="{{ url_for('admin.historique') }}" class="btn btn-info">📊 Historique</a>
+    </div>
+
+    <!-- Contenu principal -->
+    <div class="main-content">
+        <!-- Section Tous -->
+        <div id="section-tous" class="section-presence">
+            <div class="card">
+                <div class="card-header">
+                    <h2>👥 Tous les présents ({{ presences|length }})</h2>
+                    <button class="btn btn-sm btn-outline" onclick="chargerPresences()">🔄 Actualiser</button>
+                </div>
+                <div class="card-body">
+                    <div id="presencesContainer">
+                        {% if presences %}
+                        <div class="table-responsive">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Matricule</th>
+                                        <th>Stagiaire</th>
+                                        <th>Arrivée</th>
+                                        <th>Départ</th>
+                                        <th>Statut</th>
+                                        <th>📍 Localisation</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for p in presences %}
+                                    <tr>
+                                        <td><strong>{{ p.stagiaire.matricule or '-' }}</strong></td>
+                                        <td>{{ p.stagiaire.prenom }} {{ p.stagiaire.nom }}</td>
+                                        <td>
+                                            {{ p.heure_arrivee.strftime('%H:%M') if p.heure_arrivee else '-' }}
+                                            {% if p.est_retard %}
+                                            <span class="badge-retard">Retard</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ p.heure_depart.strftime('%H:%M') if p.heure_depart else '-' }}</td>
+                                        <td><span class="badge badge-success">Présent</span></td>
+                                        <td style="font-size:0.8rem;">
+                                            {% if p.latitude and p.longitude %}
+                                            <a href="https://www.google.com/maps?q={{ p.latitude }},{{ p.longitude }}" target="_blank" style="color:var(--primary);">
+                                                📍 {{ p.latitude|round(6) }}, {{ p.longitude|round(6) }}
+                                            </a>
+                                            {% else %}
+                                            ❌ Non disponible
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        <p style="margin-top:12px;color:var(--ink-soft);">Total: {{ presences|length }} présences</p>
+                        {% else %}
+                        <p class="empty">Aucune présence enregistrée aujourd'hui.</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section Retards -->
+        <div id="section-retards" class="section-presence" style="display:none;">
+            <div class="card">
+                <div class="card-header">
+                    <h2>⏰ Retardataires ({{ retards|length }})</h2>
+                    <span style="color:var(--ink-soft);font-size:0.85rem;">Arrivée après 9h</span>
+                </div>
+                <div class="card-body">
+                    <div id="retardsContainer">
+                        {% if retards %}
+                        <div class="table-responsive">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Matricule</th>
+                                        <th>Stagiaire</th>
+                                        <th>Arrivée</th>
+                                        <th>📍 Localisation</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for r in retards %}
+                                    <tr>
+                                        <td><strong>{{ r.stagiaire.matricule or '-' }}</strong></td>
+                                        <td>{{ r.stagiaire.prenom }} {{ r.stagiaire.nom }}</td>
+                                        <td>
+                                            {{ r.heure_arrivee.strftime('%H:%M') if r.heure_arrivee else '-' }}
+                                            <span class="badge-retard">Retard</span>
+                                        </td>
+                                        <td style="font-size:0.8rem;">
+                                            {% if r.latitude and r.longitude %}
+                                            <a href="https://www.google.com/maps?q={{ r.latitude }},{{ r.longitude }}" target="_blank" style="color:var(--primary);">
+                                                📍 {{ r.latitude|round(6) }}, {{ r.longitude|round(6) }}
+                                            </a>
+                                            {% else %}
+                                            ❌ Non disponible
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        <p style="margin-top:12px;color:var(--ink-soft);">Total: {{ retards|length }} retardataires</p>
+                        {% else %}
+                        <p class="empty">✅ Aucun retardataire aujourd'hui.</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section Absents -->
+        <div id="section-absents" class="section-presence" style="display:none;">
+            <div class="card">
+                <div class="card-header">
+                    <h2>❌ Absents du jour ({{ stagiaires_absents|length }})</h2>
+                    <span style="color:var(--ink-soft);font-size:0.85rem;">Stagiaires actifs sans pointage</span>
+                </div>
+                <div class="card-body">
+                    <div id="absentsContainer">
+                        {% if stagiaires_absents %}
+                        <div class="table-responsive">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Matricule</th>
+                                        <th>Nom</th>
+                                        <th>Prénom</th>
+                                        <th>Email</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for s in stagiaires_absents %}
+                                    <tr>
+                                        <td><strong>{{ s.matricule or '-' }}</strong></td>
+                                        <td>{{ s.nom }}</td>
+                                        <td>{{ s.prenom }}</td>
+                                        <td>{{ s.email }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        <p style="margin-top:12px;color:var(--ink-soft);">Total: {{ stagiaires_absents|length }} absents</p>
+                        {% else %}
+                        <p class="empty">✅ Tous les stagiaires ont pointé aujourd'hui.</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function afficherSection(section) {
+    document.querySelectorAll('.section-presence').forEach(el => {
+        el.style.display = 'none';
+    });
+    
+    const target = document.getElementById('section-' + section);
+    if (target) {
+        target.style.display = 'block';
+    }
+}
+
+function chargerPresences() {
+    const container = document.getElementById('presencesContainer');
+    container.innerHTML = '<p style="color:var(--ink-soft);">Chargement...</p>';
+    
+    fetch('/admin/api/presences')
+        .then(response => response.json())
+        .then(data => {
+            window.location.reload();
+        })
+        .catch(() => {
+            container.innerHTML = '<p style="color:red;">❌ Erreur de chargement</p>';
+        });
+}
+</script>
+{% endblock %}

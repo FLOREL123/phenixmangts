@@ -1,1 +1,268 @@
 
+{% extends "base.html" %}
+
+{% block title %}Stagiaires - Administration{% endblock %}
+
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px;margin-bottom:24px;">
+    <div>
+        <h1 style="font-size:1.8rem;">👨‍🎓 Stagiaires</h1>
+        <p style="color:var(--ink-soft);">Liste des stagiaires validés</p>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <a href="{{ url_for('admin.export_stagiaires_periode_pdf') }}" class="btn btn-success" id="btnExportPDF" onclick="exportPDFWithPeriod(event)">📄 Exporter PDF</a>
+        <a href="{{ url_for('admin.dashboard') }}" class="btn btn-outline">← Retour</a>
+    </div>
+</div>
+
+<!-- Filtre par période -->
+<div class="card">
+    <div class="card-header">
+        <h2>📅 Filtrer par période</h2>
+    </div>
+    <div class="card-body">
+        <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;">
+            <div class="form-group" style="flex:1 1 150px;margin-bottom:0;">
+                <label>Date début</label>
+                <input type="date" id="periodeDateDebut" value="{{ today.replace(day=1).strftime('%Y-%m-%d') }}">
+            </div>
+            <div class="form-group" style="flex:1 1 150px;margin-bottom:0;">
+                <label>Date fin</label>
+                <input type="date" id="periodeDateFin" value="{{ today.strftime('%Y-%m-%d') }}">
+            </div>
+            <button class="btn btn-primary" onclick="filtrerParPeriode()">🔍 Filtrer</button>
+            <button class="btn btn-outline" onclick="reinitialiserPeriode()">🔄 Réinitialiser</button>
+        </div>
+        <div style="margin-top:10px;font-size:0.85rem;color:var(--ink-soft);">
+            <span id="periodeInfo">📅 Affiche tous les stagiaires. Sélectionnez une période pour filtrer.</span>
+        </div>
+    </div>
+</div>
+
+<!-- Liste des stagiaires -->
+<div class="card">
+    <div class="card-header">
+        <h2>📋 Liste des stagiaires</h2>
+        <span style="color:var(--ink-soft);font-size:0.9rem;">
+            <span id="stagiaireCount">{{ stagiaires|length }}</span> stagiaire(s)
+            <span id="periodeAffichage" style="font-size:0.8rem;color:var(--ink-soft);margin-left:10px;"></span>
+        </span>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table>
+                <thead>
+                    <tr>
+                        <th>N°</th>
+                        <th>Matricule</th>
+                        <th>Nom</th>
+                        <th>Prénom</th>
+                        <th>Genre</th>
+                        <th>Email</th>
+                        <th>Type</th>
+                        <th>Début</th>
+                        <th>Fin</th>
+                        <th>Dossiers</th>
+                        <th>Notif</th>
+                        <th>Attest</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="stagiairesTable">
+                    {% if stagiaires %}
+                        {% for s in stagiaires %}
+                        <tr data-id="{{ s.id }}">
+                            <td>{{ loop.index }}</td>
+                            <td><strong>{{ s.matricule }}</strong></td>
+                            <td>{{ s.nom }}</td>
+                            <td>{{ s.prenom }}</td>
+                            <td>{{ s.get_titre() }}</td>
+                            <td>{{ s.email }}</td>
+                            <td>
+                                <span class="badge badge-{{ 'info' if s.type_stage == 'professionnel' else 'primary' }}">
+                                    {{ s.type_stage }}
+                                </span>
+                            </td>
+                            <td>{{ s.date_debut_fr() if s.date_debut else '-' }}</td>
+                            <td>{{ s.date_fin_fr() if s.date_fin else '-' }}</td>
+                            <td>
+                                <span class="badge badge-{{ 'success' if s.dossiers_deposes else 'danger' }}">
+                                    {{ '✅' if s.dossiers_deposes else '❌' }}
+                                </span>
+                            </td>
+                            <td>
+                                <span class="badge badge-{{ 'success' if s.notification_generee else 'danger' }}">
+                                    {{ '✅' if s.notification_generee else '❌' }}
+                                </span>
+                            </td>
+                            <td>
+                                <span class="badge badge-{{ 'success' if s.attestation_generee else 'danger' }}">
+                                    {{ '✅' if s.attestation_generee else '❌' }}
+                                </span>
+                            </td>
+                            <td>
+                                <div class="actions">
+                                    {% if s.dossiers_deposes %}
+                                        <a href="{{ url_for('admin.generer_notification', stagiaire_id=s.id) }}" target="_blank" class="btn btn-sm btn-warning" title="Notification">📄</a>
+                                        <a href="{{ url_for('admin.generer_attestation', stagiaire_id=s.id) }}" target="_blank" class="btn btn-sm btn-success" title="Attestation">📜</a>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr><td colspan="13" class="empty">Aucun stagiaire enregistré</td></tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+function echapperHtml(value) {
+    const element = document.createElement('div');
+    element.textContent = value == null ? '' : String(value);
+    return element.innerHTML;
+}
+
+// ============================================================
+// FILTRER PAR PÉRIODE
+// ============================================================
+function filtrerParPeriode() {
+    const dateDebut = document.getElementById('periodeDateDebut').value;
+    const dateFin = document.getElementById('periodeDateFin').value;
+    
+    if (!dateDebut || !dateFin) {
+        alert('⚠️ Veuillez sélectionner une date de début et une date de fin.');
+        return;
+    }
+    
+    if (dateDebut > dateFin) {
+        alert('⚠️ La date de début doit être antérieure à la date de fin.');
+        return;
+    }
+    
+    const tbody = document.getElementById('stagiairesTable');
+    tbody.innerHTML = '<tr><td colspan="13" style="text-align:center;color:var(--ink-soft);">⏳ Chargement...</td></tr>';
+    
+    fetch(`/admin/api/stagiaires/periode?date_debut=${dateDebut}&date_fin=${dateFin}`)
+        .then(response => response.json())
+        .then(data => {
+            const countSpan = document.getElementById('stagiaireCount');
+            if (countSpan) countSpan.textContent = data.length;
+            
+            const debutFormate = new Date(dateDebut + 'T00:00:00').toLocaleDateString('fr-FR');
+            const finFormate = new Date(dateFin + 'T00:00:00').toLocaleDateString('fr-FR');
+            
+            const periodeAff = document.getElementById('periodeAffichage');
+            if (periodeAff) periodeAff.textContent = `(du ${debutFormate} au ${finFormate})`;
+            
+            const periodeInfo = document.getElementById('periodeInfo');
+            if (periodeInfo) periodeInfo.textContent = `📅 Période : du ${debutFormate} au ${finFormate} (${data.length} stagiaire(s))`;
+            
+            if (data.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="13" class="empty">📭 Aucun stagiaire actif du ${debutFormate} au ${finFormate}</td></tr>`;
+                return;
+            }
+            
+            let html = '';
+            let numero = 1;
+            data.forEach(s => {
+                const typeClass = s.type_stage === 'professionnel' ? 'info' : 'primary';
+                const typeLabel = s.type_stage || '-';
+                
+                html += `
+                    <tr data-id="${s.id}">
+                        <td>${numero}</td>
+                        <td><strong>${echapperHtml(s.matricule || '-')}</strong></td>
+                        <td>${echapperHtml(s.nom)}</td>
+                        <td>${echapperHtml(s.prenom)}</td>
+                        <td>${s.genre === 'Mme' ? 'Mme' : 'M.'}</td>
+                        <td>${echapperHtml(s.email)}</td>
+                        <td>
+                            <span class="badge badge-${typeClass}">${echapperHtml(typeLabel)}</span>
+                        </td>
+                        <td>${echapperHtml(s.date_debut)}</td>
+                        <td>${echapperHtml(s.date_fin)}</td>
+                        <td>
+                            <span class="badge badge-${s.dossiers_deposes ? 'success' : 'danger'}">
+                                ${s.dossiers_deposes ? '✅' : '❌'}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="badge badge-${s.notification_generee ? 'success' : 'danger'}">
+                                ${s.notification_generee ? '✅' : '❌'}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="badge badge-${s.attestation_generee ? 'success' : 'danger'}">
+                                ${s.attestation_generee ? '✅' : '❌'}
+                            </span>
+                        </td>
+                        <td>
+                            <div class="actions">
+                                ${s.dossiers_deposes ? `
+                                    <a href="/admin/notification/${s.id}" target="_blank" class="btn btn-sm btn-warning" title="Notification">📄</a>
+                                    <a href="/admin/attestation/${s.id}" target="_blank" class="btn btn-sm btn-success" title="Attestation">📜</a>
+                                ` : ''}
+                            </div>
+                        </td>
+                    </tr>
+                `;
+                numero++;
+            });
+            tbody.innerHTML = html;
+        })
+        .catch(error => {
+            console.error('❌ Erreur:', error);
+            tbody.innerHTML = `<tr><td colspan="13" style="text-align:center;color:red;">❌ Erreur: ${error.message}</td></tr>`;
+        });
+}
+
+// ============================================================
+// RÉINITIALISER LE FILTRE PÉRIODE
+// ============================================================
+function reinitialiserPeriode() {
+    window.location.reload();
+}
+
+// ============================================================
+// EXPORT PDF AVEC PÉRIODE
+// ============================================================
+function exportPDFWithPeriod(event) {
+    event.preventDefault();
+    
+    const dateDebut = document.getElementById('periodeDateDebut').value;
+    const dateFin = document.getElementById('periodeDateFin').value;
+    
+    if (!dateDebut || !dateFin) {
+        alert('⚠️ Veuillez sélectionner une période avant d\'exporter.');
+        return;
+    }
+    
+    let url = '/admin/export/stagiaires-periode-pdf?';
+    url += `date_debut=${dateDebut}&date_fin=${dateFin}`;
+    
+    window.open(url, '_blank');
+}
+
+// ============================================================
+// CHARGEMENT INITIAL
+// ============================================================
+document.addEventListener('DOMContentLoaded', function() {
+    // Mettre à jour les informations de période par défaut
+    const dateDebut = document.getElementById('periodeDateDebut').value;
+    const dateFin = document.getElementById('periodeDateFin').value;
+    
+    if (dateDebut && dateFin) {
+        const debutFormate = new Date(dateDebut + 'T00:00:00').toLocaleDateString('fr-FR');
+        const finFormate = new Date(dateFin + 'T00:00:00').toLocaleDateString('fr-FR');
+        const periodeInfo = document.getElementById('periodeInfo');
+        if (periodeInfo) {
+            periodeInfo.textContent = `📅 Période par défaut : du ${debutFormate} au ${finFormate}`;
+        }
+    }
+});
+</script>
+{% endblock %}

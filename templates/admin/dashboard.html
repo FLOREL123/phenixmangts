@@ -1,1 +1,236 @@
 
+{% extends "base.html" %}
+
+{% block title %}Administration - PHENIX MANAGEMENT{% endblock %}
+
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px;margin-bottom:24px;">
+    <div>
+        <h1 style="font-size:1.8rem;">📊 Administration</h1>
+        <p style="color:var(--ink-soft);">Gestion des stagiaires et des demandes</p>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <a href="{{ url_for('auth.logout') }}" class="btn btn-outline">🚪 Déconnexion</a>
+    </div>
+</div>
+
+<!-- Boutons d'accès rapide -->
+<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px;">
+    <a href="{{ url_for('admin.presences') }}" class="btn btn-primary">📍 Voir les présences</a>
+    <a href="{{ url_for('admin.historique') }}" class="btn btn-info">📊 Historique</a>
+    <a href="{{ url_for('admin.stagiaires') }}" class="btn btn-success">👨‍🎓 Stagiaires</a>
+    <a href="{{ url_for('admin.demandes') }}" class="btn btn-warning">📋 Demandes</a>
+</div>
+
+<!-- Statistiques -->
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="number">{{ stats.total_stagiaires }}</div>
+        <div class="label">👨‍🎓 Total stagiaires</div>
+    </div>
+    <div class="stat-card" style="border-top-color:#27ae60;">
+        <div class="number">{{ stats.stagiaires_actifs }}</div>
+        <div class="label">✅ Actifs</div>
+    </div>
+    <div class="stat-card" style="border-top-color:#ff9800;">
+        <div class="number">{{ stats.demandes_attente }}</div>
+        <div class="label">⏳ Demandes en attente</div>
+    </div>
+    <div class="stat-card" style="border-top-color:#2196f3;">
+        <div class="number">{{ stats.presents_aujourdhui }}</div>
+        <div class="label">📍 Présents aujourd'hui</div>
+    </div>
+    <div class="stat-card" style="border-top-color:#ff9800;">
+        <div class="number">{{ stats.retards_aujourdhui }}</div>
+        <div class="label">⏰ Retardataires</div>
+    </div>
+    <div class="stat-card" style="border-top-color:#e74c3c;">
+        <div class="number">{{ stats.absents_aujourdhui }}</div>
+        <div class="label">❌ Absents</div>
+    </div>
+    <div class="stat-card" style="border-top-color:#9c27b0;">
+        <div class="number">{{ stats.total_presences_mois }}</div>
+        <div class="label">📊 Présences du mois</div>
+    </div>
+</div>
+
+<!-- Dernières demandes -->
+<div class="card">
+    <div class="card-header">
+        <h2>📋 Dernières demandes de stage</h2>
+        <a href="{{ url_for('admin.demandes') }}" class="btn btn-sm btn-outline">Voir toutes</a>
+    </div>
+    <div class="card-body">
+        {% if dernieres_demandes %}
+        <div class="table-responsive">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Nom</th>
+                        <th>Prénom</th>
+                        <th>Email</th>
+                        <th>Date de demande</th>
+                        <th>Statut</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for d in dernieres_demandes %}
+                    <tr>
+                        <td>{{ d.nom }}</td>
+                        <td>{{ d.prenom }}</td>
+                        <td>{{ d.email }}</td>
+                        <td>{{ d.date_demande.strftime('%d/%m/%Y %H:%M') }}</td>
+                        <td>
+                            <span class="badge badge-{{ 'warning' if d.statut_demande == 'en_attente' else 'success' if d.statut_demande == 'approuve' else 'danger' }}">
+                                {{ d.statut_demande }}
+                            </span>
+                        </td>
+                        <td>
+                            <a href="{{ url_for('admin.demande_detail', id=d.id) }}" class="btn btn-sm btn-primary">Voir</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="empty">Aucune demande en attente</p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Présences du jour -->
+<div class="card">
+    <div class="card-header">
+        <h2>📍 Présences du jour - {{ today.strftime('%d/%m/%Y') }}</h2>
+        <button class="btn btn-sm btn-outline" onclick="chargerPresences()">🔄 Actualiser</button>
+    </div>
+    <div class="card-body">
+        <div id="presencesContainer">
+            <p style="color:var(--ink-soft);">Chargement des présences...</p>
+        </div>
+    </div>
+</div>
+
+<script>
+function echapperHtml(value) {
+    const element = document.createElement('div');
+    element.textContent = value == null ? '' : String(value);
+    return element.innerHTML;
+}
+
+function chargerPresences() {
+    const container = document.getElementById('presencesContainer');
+    container.innerHTML = '<p style="color:var(--ink-soft);">Chargement...</p>';
+    
+    fetch('/admin/api/presences')
+        .then(response => response.json())
+        .then(data => {
+            const allPresences = data.presences || [];
+            const retards = data.retards || [];
+            const absents = data.absents || [];
+            
+            if (allPresences.length === 0 && absents.length === 0) {
+                container.innerHTML = '<p class="empty">Aucune présence enregistrée aujourd\'hui.</p>';
+                return;
+            }
+            
+            let html = `
+                <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px;">
+                    <div style="background:#e8f5e9;padding:10px;border-radius:8px;text-align:center;">
+                        <strong>✅ Présents</strong><br>
+                        <span style="font-size:1.5rem;font-weight:700;color:#27ae60;">${allPresences.length}</span>
+                    </div>
+                    <div style="background:#fff3e0;padding:10px;border-radius:8px;text-align:center;">
+                        <strong>⏰ Retards</strong><br>
+                        <span style="font-size:1.5rem;font-weight:700;color:#ff9800;">${retards.length}</span>
+                    </div>
+                    <div style="background:#fce4ec;padding:10px;border-radius:8px;text-align:center;">
+                        <strong>❌ Absents</strong><br>
+                        <span style="font-size:1.5rem;font-weight:700;color:#e74c3c;">${absents.length}</span>
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Matricule</th>
+                                <th>Stagiaire</th>
+                                <th>Arrivée</th>
+                                <th>Départ</th>
+                                <th>Statut</th>
+                                <th>📍 Localisation</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+            
+            allPresences.forEach(p => {
+                const estRetard = retards.some(r => r.id === p.id);
+                html += `
+                    <tr>
+                        <td><strong>${echapperHtml(p.matricule || '-')}</strong></td>
+                        <td>${echapperHtml(p.stagiaire)}</td>
+                        <td>
+                            ${echapperHtml(p.heure_arrivee)}
+                            ${estRetard ? '<span class="badge badge-warning" style="font-size:0.6rem;">Retard</span>' : ''}
+                        </td>
+                        <td>${echapperHtml(p.heure_depart)}</td>
+                        <td><span class="badge badge-success">${echapperHtml(p.statut)}</span></td>
+                        <td style="font-size:0.8rem;">
+                            ${p.latitude && p.longitude ? 
+                                `<a href="https://www.google.com/maps?q=${p.latitude},${p.longitude}" target="_blank" style="color:var(--primary);">
+                                    📍 ${p.latitude.toFixed(6)}, ${p.longitude.toFixed(6)}
+                                </a>` : 
+                                '❌ Non disponible'}
+                        </td>
+                    </tr>
+                `;
+            });
+            
+            // Afficher les absents
+            if (absents.length > 0) {
+                html += `
+                    <tr style="background:#fce4ec;">
+                        <td colspan="6" style="text-align:center;font-weight:600;color:#c62828;">
+                            ❌ ${absents.length} stagiaire(s) absent(s) aujourd'hui
+                        </td>
+                    </tr>
+                `;
+                absents.forEach(a => {
+                    html += `
+                        <tr style="background:#fff5f5;">
+                            <td><strong>${echapperHtml(a.matricule || '-')}</strong></td>
+                            <td>${echapperHtml(`${a.prenom} ${a.nom}`)}</td>
+                            <td colspan="4" style="color:#c62828;">❌ N'a pas pointé</td>
+                        </tr>
+                    `;
+                });
+            }
+            
+            html += `
+                        </tbody>
+                    </table>
+                </div>
+                <div style="margin-top:10px;font-size:0.8rem;color:var(--ink-soft);">
+                    📍 Cliquez sur les coordonnées pour voir la localisation sur Google Maps
+                    <br>
+                    ⏰ Retard = arrivée après 9h
+                </div>
+            `;
+            
+            container.innerHTML = html;
+        })
+        .catch(() => {
+            container.innerHTML = '<p style="color:red;">❌ Erreur de chargement des présences</p>';
+        });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    chargerPresences();
+    // Rafraîchir toutes les 5 minutes
+    setInterval(chargerPresences, 300000);
+});
+</script>
+{% endblock %}

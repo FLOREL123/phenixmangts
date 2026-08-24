@@ -23,9 +23,9 @@
                 </button>
             </form>
             <div style="margin-top:16px;text-align:center;font-size:0.85rem;color:var(--ink-soft);">
-                <p>Contactez l'administrateur si vous avez des problèmes.</p>
+                <p>Pas encore de compte ? <a href="{{ url_for('auth.register') }}" style="color:var(--primary);">📝 Créer un compte</a></p>
                 <p style="margin-top:8px;">
-                    <a href="{{ url_for('auth.admin_login') }}" style="color:var(--primary);">Accès administrateur</a>
+                    <a href="{{ url_for('auth.admin_login') }}" style="color:var(--primary);">🔐 Accès administrateur</a>
                 </p>
             </div>
         </div>

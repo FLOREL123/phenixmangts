@@ -1,1 +1,396 @@
 
+{% extends "base.html" %}
+
+{% block title %}Détail de la demande - Administration{% endblock %}
+
+{% block extra_css %}
+<style>
+    .doc-link {
+        display: inline-block;
+        padding: 8px 16px;
+        background: var(--primary-50);
+        border-radius: 8px;
+        color: var(--primary-dark);
+        text-decoration: none;
+        font-weight: 500;
+    }
+    .doc-link:hover { background: var(--primary-light); }
+    
+    .sidebar {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 16px;
+        margin-bottom: 20px;
+        border-left: 4px solid var(--primary);
+    }
+    .sidebar h3 {
+        font-size: 0.9rem;
+        color: var(--primary-dark);
+        margin-bottom: 12px;
+    }
+    .sidebar .info-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 6px 0;
+        border-bottom: 1px solid var(--border);
+        font-size: 0.85rem;
+    }
+    .sidebar .info-row:last-child { border-bottom: none; }
+    .sidebar .info-row .label { color: var(--ink-soft); font-weight: 500; }
+    .sidebar .info-row .value { font-weight: 600; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div style="max-width:950px;margin:0 auto;">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px;margin-bottom:20px;">
+        <h1 style="font-size:1.8rem;">📄 Détail de la demande</h1>
+        <a href="{{ url_for('admin.demandes') }}" class="btn btn-outline">← Retour</a>
+    </div>
+    
+    <!-- Barre latérale avec toutes les informations -->
+    <div class="sidebar">
+        <h3>📋 Informations du candidat</h3>
+        <div class="info-row">
+            <span class="label">Nom complet</span>
+            <span class="value">{{ stagiaire.prenom }} {{ stagiaire.nom }}</span>
+        </div>
+        <div class="info-row">
+            <span class="label">Genre</span>
+            <span class="value">{{ stagiaire.get_titre() }}</span>
+        </div>
+        <div class="info-row">
+            <span class="label">Email</span>
+            <span class="value">{{ stagiaire.email }}</span>
+        </div>
+        <div class="info-row">
+            <span class="label">Téléphone</span>
+            <span class="value">{{ stagiaire.telephone or '-' }}</span>
+        </div>
+        <div class="info-row">
+            <span class="label">Adresse</span>
+            <span class="value">{{ stagiaire.adresse or '-' }}</span>
+        </div>
+        <div class="info-row">
+            <span class="label">🏫 École</span>
+            <span class="value">{{ stagiaire.ecole or '-' }}</span>
+        </div>
+        <div class="info-row">
+            <span class="label">📚 Niveau d'étude</span>
+            <span class="value">{{ stagiaire.niveau_etude or '-' }}</span>
+        </div>
+        <div class="info-row">
+            <span class="label">📞 Parents / Tuteur</span>
+            <span class="value">{{ stagiaire.telephone_parents or '-' }}</span>
+        </div>
+        <div class="info-row">
+            <span class="label">⏳ Durée souhaitée</span>
+            <span class="value">{{ stagiaire.duree_stage_mois or 3 }} mois</span>
+        </div>
+        <div class="info-row">
+            <span class="label">Statut de la demande</span>
+            <span class="value">
+                <span class="badge badge-{{ 'warning' if stagiaire.statut_demande == 'en_attente' else 'success' if stagiaire.statut_demande == 'approuve' else 'danger' }}">
+                    {{ stagiaire.statut_demande }}
+                </span>
+            </span>
+        </div>
+        {% if stagiaire.date_demande %}
+        <div class="info-row">
+            <span class="label">Date de demande</span>
+            <span class="value">{{ stagiaire.date_demande.strftime('%d/%m/%Y %H:%M') }}</span>
+        </div>
+        {% endif %}
+        {% if stagiaire.entretien_programme %}
+        <div class="info-row">
+            <span class="label">📅 Entretien programmé</span>
+            <span class="value">{{ stagiaire.entretien_programme.strftime('%d/%m/%Y à %H:%M') }}</span>
+        </div>
+        {% endif %}
+        {% if stagiaire.entretien_passe %}
+        <div class="info-row">
+            <span class="label">✅ Entretien</span>
+            <span class="value">Passé</span>
+        </div>
+        {% endif %}
+        {% if stagiaire.approuve_definitif %}
+        <div class="info-row">
+            <span class="label">🎓 Validation définitive</span>
+            <span class="value">✅ Validé</span>
+        </div>
+        <div class="info-row">
+            <span class="label">Matricule</span>
+            <span class="value"><strong>{{ stagiaire.matricule }}</strong></span>
+        </div>
+        {% endif %}
+    </div>
+    
+    <!-- Documents -->
+    <div class="card">
+        <div class="card-header">
+            <h2>📁 Documents déposés</h2>
+        </div>
+        <div class="card-body">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                <div>
+                    <span style="color:var(--ink-soft);font-size:0.8rem;">📷 Photo</span>
+                    <div>
+                        {% if stagiaire.photo %}
+                            <a href="/{{ stagiaire.photo }}" target="_blank" class="doc-link">📄 Voir</a>
+                        {% else %}
+                            <span style="color:var(--ink-soft);">Non déposé</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div>
+                    <span style="color:var(--ink-soft);font-size:0.8rem;">📄 CV</span>
+                    <div>
+                        {% if stagiaire.cv %}
+                            <a href="/{{ stagiaire.cv }}" target="_blank" class="doc-link">📄 Voir</a>
+                        {% else %}
+                            <span style="color:var(--ink-soft);">Non déposé</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div>
+                    <span style="color:var(--ink-soft);font-size:0.8rem;">📩 Lettre de demande</span>
+                    <div>
+                        {% if stagiaire.lettre_demande %}
+                            <a href="/{{ stagiaire.lettre_demande }}" target="_blank" class="doc-link">📄 Voir</a>
+                        {% else %}
+                            <span style="color:var(--ink-soft);">Non déposé</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div>
+                    <span style="color:var(--ink-soft);font-size:0.8rem;">🎓 Dernier diplôme</span>
+                    <div>
+                        {% if stagiaire.dernier_diplome %}
+                            <a href="/{{ stagiaire.dernier_diplome }}" target="_blank" class="doc-link">📄 Voir</a>
+                        {% else %}
+                            <span style="color:var(--ink-soft);">Non déposé</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Actions Admin -->
+    {% if stagiaire.statut_demande == 'en_attente' %}
+    <div class="card">
+        <div class="card-header">
+            <h2>⚡ Actions</h2>
+        </div>
+        <div class="card-body">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+                <div style="background:#e8f5e9;padding:16px;border-radius:8px;">
+                    <h3 style="color:#1b5e20;margin-bottom:12px;">✅ Approuver la demande</h3>
+                    <p style="font-size:0.9rem;color:var(--ink-soft);margin-bottom:12px;">
+                        Programmez un entretien avec le candidat.
+                    </p>
+                    <form id="formApprouver" onsubmit="approuverDemande(event)">
+                        <div class="form-group">
+                            <label>Date de l'entretien</label>
+                            <input type="date" id="dateEntretien" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Heure de l'entretien</label>
+                            <input type="time" id="heureEntretien" required>
+                        </div>
+                        <button type="submit" class="btn btn-success" style="width:100%;justify-content:center;">
+                            ✅ Approuver et programmer
+                        </button>
+                    </form>
+                </div>
+                
+                <div style="background:#fce4ec;padding:16px;border-radius:8px;">
+                    <h3 style="color:#c62828;margin-bottom:12px;">❌ Rejeter la demande</h3>
+                    <p style="font-size:0.9rem;color:var(--ink-soft);margin-bottom:12px;">
+                        Indiquez un motif pour le rejet.
+                    </p>
+                    <form id="formRejeter" onsubmit="rejeterDemande(event)">
+                        <div class="form-group">
+                            <label>Motif du rejet</label>
+                            <textarea id="motifRejet" rows="3" placeholder="Expliquez pourquoi cette demande est rejetée..." required></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-danger" style="width:100%;justify-content:center;">
+                            ❌ Rejeter la demande
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Si demande approuvée -->
+    {% if stagiaire.statut_demande == 'approuve' and not stagiaire.approuve_definitif %}
+    <div class="card">
+        <div class="card-header">
+            <h2>📅 Entretien</h2>
+        </div>
+        <div class="card-body">
+            <p style="margin-bottom:12px;">
+                📅 Entretien programmé le <strong>{{ stagiaire.entretien_programme.strftime('%d/%m/%Y à %H:%M') }}</strong>
+            </p>
+            
+            {% if not stagiaire.entretien_passe %}
+            <button class="btn btn-primary" onclick="marquerEntretienPasse({{ stagiaire.id }})">
+                📅 Marquer l'entretien comme passé
+            </button>
+            {% else %}
+            <p style="color:#27ae60;">✅ Entretien passé</p>
+            
+            <div style="margin-top:16px;">
+                <label style="font-weight:600;">Type de stage :</label>
+                <select id="typeStage" style="margin:8px 0;padding:8px 12px;border-radius:8px;border:1px solid var(--border);">
+                    <option value="professionnel">Professionnel</option>
+                    <option value="academique">Académique</option>
+                </select>
+                <br>
+                <button class="btn btn-success" onclick="validerStagiaire({{ stagiaire.id }})" style="margin-top:8px;">
+                    🎓 Valider définitivement le stagiaire
+                </button>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Si stagiaire validé -->
+    {% if stagiaire.approuve_definitif %}
+    <div class="card" style="border-color:#27ae60;">
+        <div class="card-header" style="background:#e8f5e9;">
+            <h2 style="color:#1b5e20;">🎉 Stagiaire validé</h2>
+        </div>
+        <div class="card-body">
+            <p>
+                <strong>Matricule:</strong> {{ stagiaire.matricule }}
+                <br>
+                <strong>Statut:</strong> {{ stagiaire.statut }}
+                <br>
+                <strong>Date de début:</strong> {{ stagiaire.date_debut_fr() if stagiaire.date_debut else '-' }}
+                <br>
+                <strong>Date de fin:</strong> {{ stagiaire.date_fin_fr() if stagiaire.date_fin else '-' }}
+                <br>
+                <strong>Durée:</strong> {{ stagiaire.duree_stage_mois }} mois
+            </p>
+            <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap;">
+                {% if stagiaire.dossiers_deposes %}
+                    <a href="{{ url_for('admin.generer_notification', stagiaire_id=stagiaire.id) }}" target="_blank" class="btn btn-warning">📄 Notification</a>
+                    <a href="{{ url_for('admin.generer_attestation', stagiaire_id=stagiaire.id) }}" target="_blank" class="btn btn-success">📜 Attestation</a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+// Approuver une demande
+function approuverDemande(event) {
+    event.preventDefault();
+    
+    const date = document.getElementById('dateEntretien').value;
+    const heure = document.getElementById('heureEntretien').value;
+    
+    if (!date || !heure) {
+        alert('⚠️ Veuillez sélectionner une date et une heure pour l\'entretien.');
+        return;
+    }
+    
+    if (!confirm(`✅ Confirmer l'approbation avec entretien le ${date} à ${heure} ?`)) return;
+    
+    fetch('{{ url_for("admin.approuver_demande", id=stagiaire.id) }}', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ date_entretien: date, heure_entretien: heure })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('✅ ' + data.message);
+            window.location.reload();
+        } else {
+            alert('❌ ' + data.message);
+        }
+    })
+    .catch(error => alert('❌ Erreur: ' + error.message));
+}
+
+// Rejeter une demande
+function rejeterDemande(event) {
+    event.preventDefault();
+    
+    const motif = document.getElementById('motifRejet').value;
+    
+    if (!motif) {
+        alert('⚠️ Veuillez indiquer un motif de rejet.');
+        return;
+    }
+    
+    if (!confirm('❌ Confirmer le rejet de cette demande ?')) return;
+    
+    fetch('{{ url_for("admin.rejeter_demande", id=stagiaire.id) }}', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ motif: motif })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('✅ ' + data.message);
+            window.location.reload();
+        } else {
+            alert('❌ ' + data.message);
+        }
+    })
+    .catch(error => alert('❌ Erreur: ' + error.message));
+}
+
+// Marquer l'entretien comme passé
+function marquerEntretienPasse(id) {
+    if (!confirm('📅 Confirmer que l\'entretien a eu lieu ?')) return;
+    
+    fetch(`/admin/stagiaire/${id}/entretien-passe`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('✅ ' + data.message);
+            window.location.reload();
+        } else {
+            alert('❌ ' + data.message);
+        }
+    })
+    .catch(error => alert('❌ Erreur: ' + error.message));
+}
+
+// Valider définitivement un stagiaire
+function validerStagiaire(id) {
+    const type = document.getElementById('typeStage').value;
+    
+    if (!confirm(`🎓 Valider définitivement ce stagiaire (${type}) ?`)) return;
+    
+    fetch(`/admin/stagiaire/${id}/valider`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type_stage: type })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('✅ ' + data.message);
+            window.location.reload();
+        } else {
+            alert('❌ ' + data.message);
+        }
+    })
+    .catch(error => alert('❌ Erreur: ' + error.message));
+}
+</script>
+{% endblock %}

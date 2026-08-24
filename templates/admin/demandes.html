@@ -1,1 +1,92 @@
 
+{% extends "base.html" %}
+
+{% block title %}Demandes de stage - Administration{% endblock %}
+
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px;margin-bottom:24px;">
+    <div>
+        <h1 style="font-size:1.8rem;">📋 Demandes de stage</h1>
+        <p style="color:var(--ink-soft);">Gestion des demandes des candidats</p>
+    </div>
+    <a href="{{ url_for('admin.dashboard') }}" class="btn btn-outline">← Retour</a>
+</div>
+
+<!-- Statistiques des demandes -->
+<div class="stats-grid" style="grid-template-columns:repeat(4,1fr);">
+    <div class="stat-card" style="border-top-color:#ff9800;">
+        <div class="number">{{ stats.en_attente }}</div>
+        <div class="label">⏳ En attente</div>
+    </div>
+    <div class="stat-card" style="border-top-color:#27ae60;">
+        <div class="number">{{ stats.approuve }}</div>
+        <div class="label">✅ Approuvées</div>
+    </div>
+    <div class="stat-card" style="border-top-color:#e74c3c;">
+        <div class="number">{{ stats.rejete }}</div>
+        <div class="label">❌ Rejetées</div>
+    </div>
+    <div class="stat-card" style="border-top-color:#2196f3;">
+        <div class="number">{{ stats.total }}</div>
+        <div class="label">📊 Total</div>
+    </div>
+</div>
+
+<!-- Filtres -->
+<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;">
+    <a href="{{ url_for('admin.demandes', statut='tous') }}" class="btn btn-sm {{ 'btn-primary' if statut_actif == 'tous' else 'btn-outline' }}">Tous ({{ stats.total }})</a>
+    <a href="{{ url_for('admin.demandes', statut='en_attente') }}" class="btn btn-sm {{ 'btn-primary' if statut_actif == 'en_attente' else 'btn-outline' }}">⏳ En attente ({{ stats.en_attente }})</a>
+    <a href="{{ url_for('admin.demandes', statut='approuve') }}" class="btn btn-sm {{ 'btn-primary' if statut_actif == 'approuve' else 'btn-outline' }}">✅ Approuvées ({{ stats.approuve }})</a>
+    <a href="{{ url_for('admin.demandes', statut='rejete') }}" class="btn btn-sm {{ 'btn-primary' if statut_actif == 'rejete' else 'btn-outline' }}">❌ Rejetées ({{ stats.rejete }})</a>
+</div>
+
+<!-- Liste des demandes -->
+<div class="card">
+    <div class="card-body">
+        {% if demandes %}
+        <div class="table-responsive">
+            <table>
+                <thead>
+                    <tr>
+                        <th>N°</th>
+                        <th>Nom</th>
+                        <th>Prénom</th>
+                        <th>Email</th>
+                        <th>Dossier</th>
+                        <th>Date demande</th>
+                        <th>Statut</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for d in demandes %}
+                    <tr>
+                        <td>{{ loop.index }}</td>
+                        <td>{{ d.nom }}</td>
+                        <td>{{ d.prenom }}</td>
+                        <td>{{ d.email }}</td>
+                        <td>
+                            <span class="badge badge-{{ 'success' if d.dossier_complet else 'danger' }}">
+                                {{ '✅ Complet' if d.dossier_complet else '❌ Incomplet' }}
+                            </span>
+                        </td>
+                        <td>{{ d.date_demande.strftime('%d/%m/%Y %H:%M') if d.date_demande else '-' }}</td>
+                        <td>
+                            <span class="badge badge-{{ 'warning' if d.statut_demande == 'en_attente' else 'success' if d.statut_demande == 'approuve' else 'danger' }}">
+                                {{ d.statut_demande }}
+                            </span>
+                        </td>
+                        <td>
+                            <a href="{{ url_for('admin.demande_detail', id=d.id) }}" class="btn btn-sm btn-primary">📄 Voir</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="empty">📭 Aucune demande trouvée</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,258 @@
+{% extends "base.html" %}
+
+{% block title %}Mon dossier - PHENIX MANAGEMENT{% endblock %}
+
+{% block extra_css %}
+<style>
+    .upload-box {
+        border: 2px dashed var(--border);
+        border-radius: var(--radius);
+        padding: 20px;
+        text-align: center;
+        transition: all var(--transition);
+        cursor: pointer;
+    }
+    .upload-box:hover {
+        border-color: var(--primary);
+        background: var(--primary-50);
+    }
+    .upload-box .icon {
+        font-size: 32px;
+        display: block;
+        margin-bottom: 8px;
+    }
+    .upload-box .label {
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+    .upload-box .file-name {
+        font-size: 0.8rem;
+        color: var(--ink-soft);
+        margin-top: 4px;
+    }
+    .upload-box.has-file {
+        border-color: #27ae60;
+        background: #e8f5e9;
+    }
+    .statut-demande {
+        padding: 12px 20px;
+        border-radius: 8px;
+        margin-bottom: 16px;
+        font-weight: 500;
+    }
+    .statut-demande.en-attente { background: #fff3e0; color: #e65100; border-left: 4px solid #ff9800; }
+    .statut-demande.approuve { background: #e8f5e9; color: #1b5e20; border-left: 4px solid #27ae60; }
+    .statut-demande.rejete { background: #fce4ec; color: #c62828; border-left: 4px solid #e74c3c; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="message-container"></div>
+
+<div style="max-width:800px;margin:0 auto;">
+    <div class="card">
+        <div class="card-header">
+            <h2>📁 Mon dossier de stage</h2>
+            <span class="badge badge-{{ 'success' if stagiaire.dossier_complet else 'warning' }}">
+                {{ '✅ Complet' if stagiaire.dossier_complet else '⏳ Incomplet' }}
+            </span>
+        </div>
+        <div class="card-body">
+            
+            <!-- Statut de la demande -->
+            {% if stagiaire.demande_envoyee %}
+            <div class="statut-demande {{ stagiaire.statut_demande }}">
+                <strong>
+                    {% if stagiaire.statut_demande == 'en_attente' %}
+                        ⏳ Demande en cours d'examen
+                    {% elif stagiaire.statut_demande == 'approuve' %}
+                        ✅ Demande approuvée - Entretien programmé
+                    {% elif stagiaire.statut_demande == 'rejete' %}
+                        ❌ Demande rejetée
+                    {% endif %}
+                </strong>
+                {% if stagiaire.entretien_programme %}
+                    <br>
+                    📅 Entretien prévu le {{ stagiaire.date_entretien_fr() }}
+                {% endif %}
+                {% if stagiaire.approuve_definitif %}
+                    <br>
+                    🎉 Félicitations ! Vous êtes officiellement stagiaire !
+                    <br>
+                    Matricule: <strong>{{ stagiaire.matricule }}</strong>
+                {% endif %}
+            </div>
+            {% endif %}
+            
+            <!-- Formulaire de dépôt des dossiers -->
+            {% if not stagiaire.demande_envoyee or stagiaire.statut_demande == 'rejete' %}
+            <form method="POST" enctype="multipart/form-data" action="{{ url_for('routes.mon_dossier') }}">
+                <p style="color:var(--ink-soft);margin-bottom:16px;">
+                    📌 Tous les documents sont obligatoires. Formats acceptés: PDF, PNG, JPG, JPEG, GIF, DOC, DOCX
+                </p>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>📷 Photo d'identité</label>
+                        <div class="upload-box {{ 'has-file' if stagiaire.photo }}">
+                            <span class="icon">📷</span>
+                            <div class="label">Cliquez pour sélectionner</div>
+                            <div class="file-name">
+                                {% if stagiaire.photo %}
+                                    ✅ {{ stagiaire.photo.split('/')[-1] }}
+                                {% else %}
+                                    Aucun fichier sélectionné
+                                {% endif %}
+                            </div>
+                            <input type="file" name="photo" accept=".pdf,.png,.jpg,.jpeg,.gif" style="display:none;" onchange="updateFileName(this, 'photo')">
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>📄 Curriculum Vitae (CV)</label>
+                        <div class="upload-box {{ 'has-file' if stagiaire.cv }}">
+                            <span class="icon">📄</span>
+                            <div class="label">Cliquez pour sélectionner</div>
+                            <div class="file-name">
+                                {% if stagiaire.cv %}
+                                    ✅ {{ stagiaire.cv.split('/')[-1] }}
+                                {% else %}
+                                    Aucun fichier sélectionné
+                                {% endif %}
+                            </div>
+                            <input type="file" name="cv" accept=".pdf,.doc,.docx" style="display:none;" onchange="updateFileName(this, 'cv')">
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>📩 Lettre de demande de stage</label>
+                        <div class="upload-box {{ 'has-file' if stagiaire.lettre_demande }}">
+                            <span class="icon">📩</span>
+                            <div class="label">Cliquez pour sélectionner</div>
+                            <div class="file-name">
+                                {% if stagiaire.lettre_demande %}
+                                    ✅ {{ stagiaire.lettre_demande.split('/')[-1] }}
+                                {% else %}
+                                    Aucun fichier sélectionné
+                                {% endif %}
+                            </div>
+                            <input type="file" name="lettre_demande" accept=".pdf,.doc,.docx" style="display:none;" onchange="updateFileName(this, 'lettre')">
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>🎓 Dernier diplôme</label>
+                        <div class="upload-box {{ 'has-file' if stagiaire.dernier_diplome }}">
+                            <span class="icon">🎓</span>
+                            <div class="label">Cliquez pour sélectionner</div>
+                            <div class="file-name">
+                                {% if stagiaire.dernier_diplome %}
+                                    ✅ {{ stagiaire.dernier_diplome.split('/')[-1] }}
+                                {% else %}
+                                    Aucun fichier sélectionné
+                                {% endif %}
+                            </div>
+                            <input type="file" name="dernier_diplome" accept=".pdf,.png,.jpg,.jpeg" style="display:none;" onchange="updateFileName(this, 'diplome')">
+                        </div>
+                    </div>
+                </div>
+                
+                <div style="margin-top:20px;display:flex;gap:12px;flex-wrap:wrap;justify-content:space-between;">
+                    <button type="submit" class="btn btn-primary">
+                        💾 Enregistrer les dossiers
+                    </button>
+                    
+                    {% if stagiaire.dossier_complet and not stagiaire.demande_envoyee %}
+                    <button type="button" class="btn btn-success" onclick="envoyerDemande()" style="font-size:1.1rem;padding:12px 32px;">
+                        📤 Envoyer la demande
+                    </button>
+                    {% endif %}
+                </div>
+            </form>
+            
+            {% elif stagiaire.demande_envoyee and not stagiaire.approuve_definitif %}
+            <div style="text-align:center;padding:40px 0;">
+                <div style="font-size:60px;margin-bottom:20px;">
+                    {% if stagiaire.statut_demande == 'en_attente' %}⏳
+                    {% elif stagiaire.statut_demande == 'approuve' %}📅
+                    {% else %}❌
+                    {% endif %}
+                </div>
+                <h3 style="margin-bottom:10px;">
+                    {% if stagiaire.statut_demande == 'en_attente' %}
+                        Votre demande est en cours d'examen
+                    {% elif stagiaire.statut_demande == 'approuve' %}
+                        Votre demande a été approuvée !
+                    {% elif stagiaire.statut_demande == 'rejete' %}
+                        Votre demande a été rejetée
+                    {% endif %}
+                </h3>
+                <p style="color:var(--ink-soft);">
+                    {% if stagiaire.statut_demande == 'en_attente' %}
+                        L'administrateur va examiner vos dossiers sous peu.
+                    {% elif stagiaire.statut_demande == 'approuve' %}
+                        Un entretien est programmé le {{ stagiaire.date_entretien_fr() }}.
+                        Vous recevrez un email de confirmation.
+                    {% elif stagiaire.statut_demande == 'rejete' %}
+                        Votre demande n'a pas été retenue. Vous pouvez soumettre une nouvelle demande.
+                    {% endif %}
+                </p>
+                
+                {% if stagiaire.statut_demande == 'rejete' %}
+                <a href="{{ url_for('routes.mon_dossier') }}" class="btn btn-primary" style="margin-top:20px;">
+                    🔄 Soumettre une nouvelle demande
+                </a>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+// Mettre à jour le nom du fichier dans la box
+function updateFileName(input, prefix) {
+    const box = input.closest('.upload-box');
+    const fileName = box.querySelector('.file-name');
+    if (input.files && input.files[0]) {
+        fileName.textContent = '✅ ' + input.files[0].name;
+        box.classList.add('has-file');
+    } else {
+        fileName.textContent = 'Aucun fichier sélectionné';
+        box.classList.remove('has-file');
+    }
+}
+
+// Activer le clic sur la box pour ouvrir le sélecteur de fichier
+document.querySelectorAll('.upload-box').forEach(box => {
+    box.addEventListener('click', function() {
+        const input = this.querySelector('input[type="file"]');
+        if (input) input.click();
+    });
+});
+
+// Envoyer la demande de stage
+function envoyerDemande() {
+    if (!confirm('📤 Voulez-vous envoyer votre demande de stage ?')) return;
+    
+    fetch('/envoyer-demande', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            afficherMessage('✅ ' + data.message, 'success');
+            setTimeout(() => window.location.reload(), 2000);
+        } else {
+            afficherMessage('❌ ' + data.message, 'danger');
+        }
+    })
+    .catch(error => {
+        afficherMessage('❌ Erreur: ' + error.message, 'danger');
+    });
+}
+</script>
+{% endblock %}

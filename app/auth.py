@@ -1,17 +1,22 @@
 """
 Authentification des utilisateurs
 """
-from flask import Blueprint, render_template, request, redirect, url_for, flash, session
+from flask import Blueprint, render_template, request, redirect, url_for, flash, session, current_app
 from flask_login import login_user, logout_user, login_required, current_user
 from app.extensions import db, login_manager
 from app.models import Stagiaire
+from hmac import compare_digest
+from sqlalchemy.exc import SQLAlchemyError
 import re
 
 auth_bp = Blueprint('auth', __name__, url_prefix='/auth')
 
 @login_manager.user_loader
 def load_user(user_id):
-    return Stagiaire.query.get(int(user_id))
+    try:
+        return Stagiaire.query.get(int(user_id))
+    except (TypeError, ValueError):
+        return None
 
 def is_valid_email(email):
     pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
@@ -26,18 +31,20 @@ def register():
     if request.method == 'POST':
         nom = request.form.get('nom', '').strip()
         prenom = request.form.get('prenom', '').strip()
-        email = request.form.get('email', '').strip()
+        email = request.form.get('email', '').strip().lower()
         password = request.form.get('password', '')
         confirm_password = request.form.get('confirm_password', '')
         telephone = request.form.get('telephone', '').strip()
         adresse = request.form.get('adresse', '').strip()
         genre = request.form.get('genre', 'M.')
-        duree_stage = request.form.get('duree_stage', 3)
+        duree_stage = request.form.get('duree_stage', '3')
         
+        # NOUVEAUX CHAMPS OBLIGATOIRES
         ecole = request.form.get('ecole', '').strip()
         niveau_etude = request.form.get('niveau_etude', '').strip()
         telephone_parents = request.form.get('telephone_parents', '').strip()
         
+        # Validation - Tous les champs sont obligatoires
         if not all([nom, prenom, email, password, ecole, niveau_etude, telephone_parents]):
             flash('❌ Tous les champs sont obligatoires', 'danger')
             return render_template('register.html')
@@ -53,29 +60,44 @@ def register():
         if len(password) < 4:
             flash('❌ Le mot de passe doit contenir au moins 4 caractères', 'danger')
             return render_template('register.html')
-        
-        if Stagiaire.query.filter_by(email=email).first():
-            flash('❌ Cet email est déjà utilisé', 'danger')
+
+        try:
+            duree_stage = int(duree_stage)
+        except (TypeError, ValueError):
+            flash('❌ Durée de stage invalide', 'danger')
+            return render_template('register.html')
+        if duree_stage not in {1, 2, 3, 4, 5, 6, 12}:
+            flash('❌ Durée de stage invalide', 'danger')
             return render_template('register.html')
         
-        stagiaire = Stagiaire(
-            nom=nom,
-            prenom=prenom,
-            email=email,
-            genre=genre,
-            telephone=telephone,
-            adresse=adresse,
-            statut='en_attente',
-            matricule=None,
-            duree_stage_mois=int(duree_stage),
-            ecole=ecole,
-            niveau_etude=niveau_etude,
-            telephone_parents=telephone_parents
-        )
-        stagiaire.set_password(password)
-        
-        db.session.add(stagiaire)
-        db.session.commit()
+        try:
+            if Stagiaire.query.filter_by(email=email).first():
+                flash('❌ Cet email est déjà utilisé', 'danger')
+                return render_template('register.html')
+
+            stagiaire = Stagiaire(
+                nom=nom,
+                prenom=prenom,
+                email=email,
+                genre=genre,
+                telephone=telephone,
+                adresse=adresse,
+                statut='en_attente',
+                matricule=None,
+                duree_stage_mois=duree_stage,
+                ecole=ecole,
+                niveau_etude=niveau_etude,
+                telephone_parents=telephone_parents
+            )
+            stagiaire.set_password(password)
+
+            db.session.add(stagiaire)
+            db.session.commit()
+        except SQLAlchemyError:
+            db.session.rollback()
+            current_app.logger.exception('Erreur lors de la création du compte')
+            flash('❌ Impossible de créer le compte pour le moment. Vérifiez la configuration de la base de données.', 'danger')
+            return render_template('register.html')
         
         flash('✅ Compte créé avec succès ! Connectez-vous pour déposer vos dossiers.', 'success')
         return redirect(url_for('auth.login'))
@@ -88,8 +110,8 @@ def login():
         return redirect(url_for('routes.dashboard'))
     
     if request.method == 'POST':
-        email = request.form.get('email')
-        password = request.form.get('password')
+        email = request.form.get('email', '').strip().lower()
+        password = request.form.get('password', '')
         
         stagiaire = Stagiaire.query.filter_by(email=email).first()
         
@@ -115,11 +137,18 @@ def logout():
 def admin_login():
     if request.method == 'POST':
         password = request.form.get('password')
-        # Changez '123456' par un mot de passe plus sécurisé
-        if password == '123456':  # Mot de passe admin
+        admin_password = current_app.config.get('ADMIN_PASSWORD')
+        if admin_password and password and compare_digest(
+            password.encode('utf-8'), admin_password.encode('utf-8')):
             session['admin_logged_in'] = True
             return redirect(url_for('admin.dashboard'))
         else:
             flash('❌ Mot de passe incorrect', 'danger')
     
     return render_template('admin_login.html')
+
+@auth_bp.route('/admin/logout')
+def admin_logout():
+    session.pop('admin_logged_in', None)
+    flash('✅ Vous êtes déconnecté', 'success')
+    return redirect(url_for('auth.admin_login'))

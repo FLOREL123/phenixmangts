@@ -22,6 +22,11 @@ def is_valid_email(email):
     pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
     return re.match(pattern, email) is not None
 
+
+def secure_compare(left, right):
+    """Compare des chaînes, y compris lorsqu'elles contiennent de l'Unicode."""
+    return compare_digest(left.encode('utf-8'), right.encode('utf-8'))
+
 @auth_bp.route('/register', methods=['GET', 'POST'])
 def register():
     """Inscription des nouveaux stagiaires"""
@@ -139,7 +144,7 @@ def admin_login():
         credential = AdminCredential.query.first()
         admin_password = current_app.config.get('ADMIN_PASSWORD')
         password_valid = credential.check_password(password) if credential else (
-            admin_password and compare_digest(password, admin_password))
+            bool(admin_password) and secure_compare(password, admin_password))
         if password_valid:
             session['admin_logged_in'] = True
             return redirect(url_for('admin.dashboard'))
@@ -152,11 +157,11 @@ def admin_login():
 def admin_forgot_password():
     if request.method == 'POST':
         answer = request.form.get('answer', '').strip().casefold()
-        expected_answer = 'jaune'
+        expected_answer = current_app.config.get('ADMIN_RECOVERY_ANSWER', '').strip().casefold()
         new_password = request.form.get('new_password', '')
         confirm_password = request.form.get('confirm_password', '')
 
-        if not compare_digest(answer, expected_answer):
+        if not secure_compare(answer, expected_answer):
             flash('❌ Réponse incorrecte. Le mot de passe ne peut pas être modifié.', 'danger')
         elif len(new_password) < 8:
             flash('❌ Le nouveau mot de passe doit contenir au moins 8 caractères.', 'danger')

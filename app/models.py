@@ -153,45 +153,26 @@ class Stagiaire(db.Model):
     def date_entretien_fr(self):
         return self._date_fr(self.entretien_programme)
 
-
-class AdminCredential(db.Model):
-    __tablename__ = 'admin_credentials'
-
-    id = db.Column(db.Integer, primary_key=True)
-    password_hash = db.Column(db.String(255), nullable=False)
-    updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
-
-    def set_password(self, password):
-        self.password_hash = bcrypt.hashpw(
-            password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
-
-    def check_password(self, password):
-        return bcrypt.checkpw(password.encode('utf-8'), self.password_hash.encode('utf-8'))
-    
     # ============================================================
     # MÉTHODES DE GESTION DES DOCUMENTS
     # ============================================================
     def get_documents_requis(self):
         return ['photo', 'cv', 'lettre_demande', 'dernier_diplome']
-    
+
     def documents_soumis(self):
-        docs = self.get_documents_requis()
-        for doc in docs:
-            if not getattr(self, doc):
-                return False
-        return True
-    
+        return all(getattr(self, document) for document in self.get_documents_requis())
+
     @property
     def dossier_uploaded(self):
-        return all([self.photo, self.cv, self.lettre_demande, self.dernier_diplome])
-    
+        return self.documents_soumis()
+
     def peut_pointer(self):
         if self.statut != 'actif':
             return False
         if self.date_fin and self.date_fin < datetime.now().date():
             return False
         return True
-    
+
     # ============================================================
     # MÉTHODE POUR OBTENIR LES INFORMATIONS COMPLÈTES
     # ============================================================
@@ -214,9 +195,24 @@ class AdminCredential(db.Model):
             'date_fin': self.date_fin_fr() if self.date_fin else None,
             'type_stage': self.type_stage
         }
-    
+
     def __repr__(self):
         return f"{self.prenom} {self.nom}"
+
+
+class AdminCredential(db.Model):
+    __tablename__ = 'admin_credentials'
+
+    id = db.Column(db.Integer, primary_key=True)
+    password_hash = db.Column(db.String(255), nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
+
+    def set_password(self, password):
+        self.password_hash = bcrypt.hashpw(
+            password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+
+    def check_password(self, password):
+        return bcrypt.checkpw(password.encode('utf-8'), self.password_hash.encode('utf-8'))
 
 
 # ============================================================

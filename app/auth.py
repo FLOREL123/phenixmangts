@@ -4,7 +4,7 @@ Authentification des utilisateurs
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, current_app
 from flask_login import login_user, logout_user, login_required, current_user
 from app.extensions import db, login_manager
-from app.models import Stagiaire
+from app.models import AdminCredential, Stagiaire
 from hmac import compare_digest
 from sqlalchemy.exc import SQLAlchemyError
 import re
@@ -132,20 +132,53 @@ def logout():
     session.clear()
     flash('✅ Vous êtes déconnecté', 'success')
     return redirect(url_for('auth.login'))
-
 @auth_bp.route('/admin/login', methods=['GET', 'POST'])
 def admin_login():
     if request.method == 'POST':
-        password = request.form.get('password')
+        password = request.form.get('password', '')
+        credential = AdminCredential.query.first()
         admin_password = current_app.config.get('ADMIN_PASSWORD')
-        if admin_password and password and compare_digest(
-            password.encode('utf-8'), admin_password.encode('utf-8')):
+        password_valid = credential.check_password(password) if credential else (
+            admin_password and compare_digest(password, admin_password))
+        if password_valid:
             session['admin_logged_in'] = True
             return redirect(url_for('admin.dashboard'))
         else:
             flash('❌ Mot de passe incorrect', 'danger')
     
     return render_template('admin_login.html')
+
+@auth_bp.route('/admin/forgot-password', methods=['GET', 'POST'])
+def admin_forgot_password():
+    if request.method == 'POST':
+        answer = request.form.get('answer', '').strip().casefold()
+        expected_answer = 'jaune'
+        new_password = request.form.get('new_password', '')
+        confirm_password = request.form.get('confirm_password', '')
+
+        if not compare_digest(answer, expected_answer):
+            flash('❌ Réponse incorrecte. Le mot de passe ne peut pas être modifié.', 'danger')
+        elif len(new_password) < 8:
+            flash('❌ Le nouveau mot de passe doit contenir au moins 8 caractères.', 'danger')
+        elif new_password != confirm_password:
+            flash('❌ Les mots de passe ne correspondent pas.', 'danger')
+        else:
+            credential = AdminCredential.query.first()
+            if credential is None:
+                credential = AdminCredential()
+                db.session.add(credential)
+            try:
+                credential.set_password(new_password)
+                db.session.commit()
+            except SQLAlchemyError:
+                db.session.rollback()
+                current_app.logger.exception('Erreur lors de la réinitialisation du mot de passe admin')
+                flash('❌ Impossible de modifier le mot de passe pour le moment.', 'danger')
+                return render_template('admin_forgot_password.html')
+            flash('✅ Mot de passe modifié. Vous pouvez maintenant vous connecter.', 'success')
+            return redirect(url_for('auth.admin_login'))
+
+    return render_template('admin_forgot_password.html')
 
 @auth_bp.route('/admin/logout')
 def admin_logout():

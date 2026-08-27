@@ -89,7 +89,7 @@ def _migrate_stagiaire_columns():
         definition = column.type.compile(dialect=db.engine.dialect)
         default = column.default.arg if column.default and not callable(column.default.arg) else None
         if isinstance(default, bool):
-            definition += ' DEFAULT FALSE' if default else ' DEFAULT FALSE'
+            definition += ' DEFAULT TRUE' if default else ' DEFAULT FALSE'
         elif isinstance(default, int):
             definition += f' DEFAULT {default}'
 

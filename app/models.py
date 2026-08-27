@@ -152,6 +152,21 @@ class Stagiaire(db.Model):
     
     def date_entretien_fr(self):
         return self._date_fr(self.entretien_programme)
+
+
+class AdminCredential(db.Model):
+    __tablename__ = 'admin_credentials'
+
+    id = db.Column(db.Integer, primary_key=True)
+    password_hash = db.Column(db.String(255), nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
+
+    def set_password(self, password):
+        self.password_hash = bcrypt.hashpw(
+            password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+
+    def check_password(self, password):
+        return bcrypt.checkpw(password.encode('utf-8'), self.password_hash.encode('utf-8'))
     
     # ============================================================
     # MÉTHODES DE GESTION DES DOCUMENTS

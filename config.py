@@ -5,6 +5,8 @@ load_dotenv()
 
 class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY', 'dev-secret-key')
+    ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD')
+    ADMIN_RECOVERY_ANSWER = os.environ.get('ADMIN_RECOVERY_ANSWER', 'vert')
     
     # ============================================================
     # BASE DE DONNÉES - SQLite (Pas besoin de PostgreSQL)
@@ -28,6 +30,8 @@ class Config:
     ENTREPRISE_LAT = 6.3600
     ENTREPRISE_LNG = 2.4150
     RAYON_POINTAGE = 0.005
+    SESSION_COOKIE_HTTPONLY = True
+    SESSION_COOKIE_SAMESITE = 'Lax'
 
 class DevelopmentConfig(Config):
     DEBUG = True

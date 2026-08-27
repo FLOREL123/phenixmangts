@@ -18,12 +18,15 @@
                     Se connecter
                 </button>
             </form>
+            <div style="margin-top:14px;text-align:center;">
+                <a href="{{ url_for('auth.admin_forgot_password') }}" style="color:var(--primary);">Mot de passe oublié ?</a>
+            </div>
             <div style="margin-top:16px;text-align:center;font-size:0.85rem;color:var(--ink-soft);">
                 <a href="{{ url_for('auth.login') }}" style="color:var(--primary);">← Retour à la connexion stagiaire</a>
+                <br>
+                <a href="{{ url_for('auth.register') }}" style="color:var(--primary);">📝 Créer un compte stagiaire</a>
             </div>
         </div>
     </div>
 </div>
-
-
 {% endblock %}
